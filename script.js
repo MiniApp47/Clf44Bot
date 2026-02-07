@@ -175,10 +175,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             video: 'Video72.mov',
                             description: '',
                             tarifs: [
-                                { weight: '5G', price: 70.00 },
-                                { weight: '10G', price: 120.00 },
-                                { weight: '20G', price: 250.00 },
-                                { weight: '50G', price: 450.00 },
+                                { weight: '10G', price: 70.00 },
+                                { weight: '20G', price: 120.00 },
+                                { weight: '50G', price: 250.00 },
+                                { weight: '100G', price: 450.00 },
                             ]
                         }
                     ]
@@ -1258,66 +1258,47 @@ function renderProductListSimple(categoryId) {
     
         document.getElementById('product-page-title').innerText = product.name;
         const detailsContainer = document.getElementById('product-details-content');
+        const mainVideoElement = document.querySelector('#page-product .product-video');
     
-        // --- 1. GESTION INTELLIGENTE DES MÉDIAS ---
-        let galleryHTML = '';
-        let hasMedia = false;
+        // --- 1. GESTION DU MÉDIA (PRIORITÉ VIDÉO) ---
+        let mediaHTML = '';
+        const videoSrc = product.video || (product.videos && product.videos[0]);
     
-        // Images
-        let mediaItems = [];
-        if (product.images && product.images.length > 0) {
-            mediaItems = product.images;
-        } else if (product.image && product.image !== '') {
-            mediaItems = [product.image];
-        }
-    
-        if (mediaItems.length > 0) {
-            hasMedia = true;
-            galleryHTML += mediaItems.map(imgSrc => `
-                <div class="gallery-item"><img src="${imgSrc}" alt="${product.name}"></div>
-            `).join('');
-        }
-    
-        // Vidéos
-        if (product.videos && product.videos.length > 0) {
-            hasMedia = true;
-            product.videos.forEach(videoSrc => {
-                galleryHTML += `
+        if (videoSrc) {
+            // SI VIDÉO : On affiche la vidéo et on masque l'élément vidéo par défaut du HTML
+            if(mainVideoElement) mainVideoElement.style.display = 'none';
+            mediaHTML = `
+                <div class="product-gallery-wrapper">
                     <div class="gallery-item">
-                        <video controls playsinline poster="${product.image || ''}">
+                        <video autoplay loop muted playsinline style="width:100%; border-radius:15px;">
                             <source src="${videoSrc}" type="video/mp4">
                         </video>
-                    </div>`;
-            });
-        } else if (product.video && product.video !== '') {
-            hasMedia = true;
-            galleryHTML += `
-                <div class="gallery-item">
-                    <video controls playsinline poster="${product.image || ''}">
-                        <source src="${product.video}" type="video/mp4">
-                    </video>
+                    </div>
+                </div>`;
+        } else if (product.image) {
+            // SI PAS DE VIDÉO : On affiche l'image
+            if(mainVideoElement) mainVideoElement.style.display = 'none';
+            mediaHTML = `
+                <div class="product-gallery-wrapper">
+                    <div class="gallery-item">
+                        <img src="${product.image}" alt="${product.name}" style="width:100%; border-radius:15px;">
+                    </div>
                 </div>`;
         }
     
-        // --- 2. LE RESTE (OPTIONS, DESCRIPTION, TARIFS) ---
-
-        // --- GESTION DU CONTENU PACK (Liens internes) ---
-    let packLinksHTML = '';
-    if (product.packContents && product.packContents.length > 0) {
-        const links = product.packContents.map(item => `
-            <div class="pack-item-btn" data-target-id="${item.targetId}">
-                <span>${item.name}</span>
-                <span class="pack-arrow">›</span>
-            </div>
-        `).join('');
-        
-        packLinksHTML = `
-            <div class="pack-content-container">
-                <div style="color:#8e8e93; font-size:0.9rem; margin-bottom:5px;">📦 CONTENU DU PACK :</div>
-                ${links}
-            </div>
-        `;
-    }
+        // --- 2. GESTION DU CONTENU PACK ---
+        let packLinksHTML = '';
+        if (product.packContents && product.packContents.length > 0) {
+            const links = product.packContents.map(item => `
+                <div class="pack-item-btn" data-target-id="${item.targetId}">
+                    <span>${item.name}</span>
+                    <span class="pack-arrow">›</span>
+                </div>
+            `).join('');
+            packLinksHTML = `<div class="pack-content-container">${links}</div>`;
+        }
+    
+        // --- 3. VARIANTES (JARs) ---
         let variantsHTML = '';
         if (product.jars && product.jars.length > 0) {
             const buttonsHTML = product.jars.map((jar, index) => `
@@ -1328,11 +1309,10 @@ function renderProductListSimple(categoryId) {
                     <span class="text">${jar.name}</span>
                 </div>
             `).join('');
-            variantsHTML = `<div class="variant-selector-container"><div class="variant-title">${product.variantTitle || 'Choisir une option :'}</div><div class="variant-grid">${buttonsHTML}</div></div>`;
-        } else if (product.options && product.options.length > 0) {
-            variantsHTML = `<div class="product-options-container" style="margin-bottom: 15px;"><label style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 5px; display:block;">Choisir :</label><select id="product-variant-select" style="width: 100%; padding: 12px; border-radius: 8px; background: #2c2c2e; color: white; border: 1px solid #3a3a3c;">${product.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select></div>`;
+            variantsHTML = `<div class="variant-selector-container"><div class="variant-grid">${buttonsHTML}</div></div>`;
         }
     
+        // --- 4. TARIFS ---
         let tarifsHTML = product.tarifs.map(tarif => `
             <div class="tarif-item">
                 <div class="box-tarif">
@@ -1345,66 +1325,53 @@ function renderProductListSimple(categoryId) {
             </div>
         `).join('');
     
-        let descriptionHTML = product.description ? `<p class="product-description">${product.description.replace(/\n/g, '<br>')}</p>` : '';
-    
-        const oldVideo = document.querySelector('#page-product .product-video');
-        if(oldVideo) oldVideo.style.display = 'none';
-    
-        // --- 3. INJECTION (On cache la galerie si pas de média) ---
+        // --- 5. INJECTION FINALE ---
         detailsContainer.innerHTML = `
-            ${hasMedia ? `<div class="product-gallery-wrapper">${galleryHTML}</div>` : ''}
-            ${hasMedia ? `<div class="gallery-counter">Swipe ➡️</div>` : ''}
-            
-            <div class="name" style="margin-top: ${hasMedia ? '0' : '20px'}">${product.name}</div>
+            ${mediaHTML}
+            <div class="name" style="margin-top: 15px">${product.name}</div>
             <div class="farm">${product.farm}</div>
-            ${packLinksHTML} ${descriptionHTML}
-                        ${variantsHTML}
-            <h4 class="tarifs-title">💰 Tarifs disponibles :</h4>
+            ${packLinksHTML}
+            ${product.description ? `<p class="product-description">${product.description.replace(/\n/g, '<br>')}</p>` : ''}
+            ${variantsHTML}
+            <h4 class="tarifs-title">💰 Tarifs :</h4>
             <div class="tarifs-grid-container">${tarifsHTML}</div>
-        `;
+         `;
+
+    showPage('page-product');
     
-        showPage('page-product');
-    
-        // Réattache les événements (pour les variantes de couleurs)
-        if (product.jars && product.jars.length > 0) {
-            const variantBtns = document.querySelectorAll('.variant-btn');
-            const cartBtns = document.querySelectorAll('.add-to-cart-btn');
-            const updateCartButtonsColor = (colorClass) => {
-                cartBtns.forEach(btn => {
-                    btn.classList.remove(
-                        'style-purple', 
-                        'style-red', 
-                        'style-green', 
-                        'style-yellow', 
-                        'style-orange', 
-                        'style-brown', 
-                        'style-passion', 
-                        'style-melon',
-                        // 👇 J'ai ajouté tes nouvelles ici :
-                        'style-gmo',
-                        'style-lampo',
-                        'style-tangier',
-                        'style-grappe'
-                    );
-                                        if (colorClass) btn.classList.add(colorClass);
-                });
-            };
-            updateCartButtonsColor(product.jars[0].colorClass);
-            variantBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    variantBtns.forEach(b => {
-                        b.classList.remove('active');
-                        const color = b.dataset.colorClass;
-                        b.classList.remove(color);
-                    });
-                    this.classList.add('active');
-                    this.classList.add(this.dataset.colorClass);
-                    updateCartButtonsColor(this.dataset.colorClass);
-                    if(window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.selectionChanged();
-                });
-            });
-        }
+    // --- LIGNE À AJOUTER/VÉRIFIER ICI ---
+    if (product.jars && product.jars.length > 0) {
+        setupVariantListeners(product);
     }
+}
+
+function setupVariantListeners(product) {
+    const variantButtons = document.querySelectorAll('.variant-btn');
+    
+    variantButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 1. Retirer la classe active de tous les boutons
+            variantButtons.forEach(b => {
+                const color = b.dataset.colorClass;
+                b.classList.remove('active', color);
+            });
+
+            // 2. Ajouter la classe active au bouton cliqué
+            const selectedColor = this.dataset.colorClass;
+            this.classList.add('active', selectedColor);
+
+            // 3. Mettre à jour le nom du produit (pour le panier)
+            const variantName = this.dataset.name;
+            // On peut stocker cette info dans une variable globale ou un attribut data
+            document.querySelector('#page-product .name').innerText = `${product.name} (${variantName})`;
+            
+            // Optionnel : Petit retour haptique Telegram
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        });
+    });
+}
 
     // Met à jour l'affichage du panier (CORRIGÉ : Cache l'image si vide)
     function renderCart() {
